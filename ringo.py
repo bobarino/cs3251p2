@@ -19,15 +19,20 @@ class Server(Thread):
 
     def run(self):
         while True:
-            print 'Waiting for connection..'
+            #print 'Waiting for connection..'
             data, address = self.socket.recvfrom(BUFFER_SIZE)
-            print 'Connected To', address
+            #print 'Connected To', address
             if address not in self.ringo_vector:
                 self.ringo_vector.append(address)
             if not data:
                 continue
-            print data
-            print self.ringo_vector
+            if data == "PD":
+                response = ""
+                for r in self.ringo_vector:
+                    response += str(r[0]) + "," + str(r[1]) + ";"
+                self.socket.sendto(response, address)
+            else:
+                self.socket.sendto(data, address)
 
 class Client(Thread):
     def __init__(self, flag, host, port, n):
@@ -47,6 +52,16 @@ class Client(Thread):
             if not data:
                 continue
             self.socket.sendto(data, self.addr)
+            response, server = self.socket.recvfrom(BUFFER_SIZE)
+            print response
+            # if data == "PD":
+            #     response_split = response.split(";")
+            #     response_split.pop()
+            #     for r in response_split:
+            #         r_split = r.split(",")
+            #         self.socket.sendto(data, (r_split[0], int(r_split[1])))
+            #         pd_response, server = self.socket.recvfrom(BUFFER_SIZE)
+            #         print pd_response
 
 if __name__ == "__main__":
 
