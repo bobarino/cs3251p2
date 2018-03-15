@@ -67,6 +67,7 @@ if __name__ == "__main__":
 
     if len(sys.argv) != 6:
         print "You must enter the flag as your first argument (S, R, or F)."
+        # S: sender, R; receiver, F: forwarder
         print "You must enter in a port number as your second argument. If not entered within 49152 and 65535 (exclusive), it will default to 50000."
         print "You must enter in the host-name of the PoC for this Ringo (0 if it doesn't have one) as your 3rd argument."
         print "You must enter in the UDP port number of the PoC for this Ringo (0 if it doesn't have one) as your 4th argument."
