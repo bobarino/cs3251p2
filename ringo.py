@@ -7,6 +7,9 @@ from threading import Thread
 import numpy as np
 
 class Packet:
+    pDEL = '$$$'
+    DEL = '@'
+
     def __init__(self_):
         self.src = ''
         self.src_port = 0
@@ -15,6 +18,22 @@ class Packet:
         self.seqNum = 0
         self.ackNum = 0
         self.data = ''
+
+    def pack(self):
+        seq = (str(self.src), str(self.src_port), str(self.dest), str(self.dest_port), str(self.seqNum), str(self.ackNum), str(self.data))
+        DEL.join(seq)
+        packed = seq + pDEL
+        return packed
+
+    def unpack(self, packed):
+        seq = string(packed).split(DEL)
+        self.src = seq[0]
+        self.src_port = seq[1]
+        self.dest = seq[2]
+        self.dest_port = seq[3]
+        self.seqNum = seq[4]
+        self.ackNum = seq[5]
+        self.data = seq[6]
 
 
 class Server(Thread):
