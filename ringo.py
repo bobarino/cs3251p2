@@ -1,5 +1,7 @@
 import socket
 import sys
+import time
+import requests
 
 from threading import Thread
 import numpy as np
@@ -62,6 +64,30 @@ class Client(Thread):
             #         self.socket.sendto(data, (r_split[0], int(r_split[1])))
             #         pd_response, server = self.socket.recvfrom(BUFFER_SIZE)
             #         print pd_response
+
+# i wrote this assuming the dest ringo is param idk
+def rtt_calc(dest):
+    # initial time when sent
+    initialTime = time.time()
+    
+    reqTime = requests.get(dest)
+
+    #time of ack
+    finalTime = time.time()
+
+    totalTime = str(finalTime - initialTime)
+
+def rtt_vector(self):
+    
+    threading.Thread(target=self.rtt_calc)
+    for r in self.ringos:
+        self.rtt_calc(ringo)
+    
+
+
+
+
+
 
 if __name__ == "__main__":
 
