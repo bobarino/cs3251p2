@@ -6,6 +6,17 @@ import requests
 from threading import Thread
 import numpy as np
 
+class Packet:
+    def __init__(self_):
+        self.src = ''
+        self.src_port = 0
+        self.dest = ''
+        self.dest_port = 0
+        self.seqNum = 0
+        self.ackNum = 0
+        self.data = ''
+
+
 class Server(Thread):
     def __init__(self, host, port):
         Thread.__init__(self)
@@ -42,7 +53,7 @@ class Client(Thread):
         self.flag = flag
         self.port = port
         self.host = host
-        self.n = n
+        .n = n
         self.bufsize = 1024
         self.addr = (host, port)
 
@@ -55,7 +66,7 @@ class Client(Thread):
                 continue
             self.socket.sendto(data, self.addr)
             response, server = self.socket.recvfrom(BUFFER_SIZE)
-            print response
+            print (response)
             # if data == "PD":
             #     response_split = response.split(";")
             #     response_split.pop()
@@ -65,6 +76,19 @@ class Client(Thread):
             #         pd_response, server = self.socket.recvfrom(BUFFER_SIZE)
             #         print pd_response
 
+
+def peer_discovery(self):
+    poc = (self.poc, self.poc_port)
+    self.ringos.apppend(poc)
+    send = threading.Thread(target=pd_send).start()
+    while not self.pd_event:
+        m, a = self.socket.recvfrom(SOCKET)
+        rec = threading.Thread(target=self.pd_receive, args=(m, a).start()
+
+def pd_send(self):
+
+
+def pd_receive(self):
 
 
 
