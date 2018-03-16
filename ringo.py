@@ -4,7 +4,8 @@ import time
 import requests
 
 from threading import Thread
-import numpy as np
+# import numpy as np
+# import pandas as pd
 
 class Packet:
     pDEL = '$$$'
@@ -18,9 +19,11 @@ class Packet:
         self.seqNum = 0
         self.ackNum = 0
         self.data = ''
+        self.pd_flag = False
+        self.ack_flag = False
 
     def pack(self):
-        seq = (str(self.src), str(self.src_port), str(self.dest), str(self.dest_port), str(self.seqNum), str(self.ackNum), str(self.data))
+        seq = (str(self.src), str(self.src_port), str(self.dest), str(self.dest_port), str(self.seqNum), str(self.ackNum), str(self.data), str(self.pd_flag), str(self.ack_flag))
         DEL.join(seq)
         packed = seq + pDEL
         return packed
@@ -34,6 +37,16 @@ class Packet:
         self.seqNum = seq[4]
         self.ackNum = seq[5]
         self.data = seq[6]
+        
+        if seq[7] == 'True':
+            self.pd_flag = True
+        else:
+            self.pd_flag = False
+
+        if seq[8] == 'True':
+            self.ack_flag = True
+        else:
+            self.ack_flag = False
 
 
 class Server(Thread):
@@ -96,38 +109,44 @@ class Client(Thread):
             #         print pd_response
 
 
-def peer_discovery(self):
-    poc = (self.poc, self.poc_port)
-    self.ringos.apppend(poc)
-    send = threading.Thread(target=pd_send).start()
-    while not self.pd_event:
-        m, a = self.socket.recvfrom(SOCKET)
-        rec = threading.Thread(target=self.pd_receive, args=(m, a).start()
-
-def pd_send(self):
-
-
-def pd_receive(self):
-
-
-
-
 
 
 # -----------------------------------------------------
-# i wrote this assuming the dest ringo is param idk#
-#def rtt_calc(dest):
-#    # initial time when sent
-#    initialTime = time.time()
-#    
-#    reqTime = requests.get(dest)
-#
+def assignRingoID(pd_vector):
+    c = 0
+    for ringo in pd_vector:
+        ringo.id = c
+        c = c +1
+
+def rtt_calc(self, dest):
+    # initial time when sent
+    initialTime = time.time()
+
+    # this is probs wrong
+    # basically need to ping and get something back
+    reqTime = requests.get(dest)
+
      # time of ack
-#    finalTime = time.time()
+    finalTime = time.time()
 
-#    totalTime = str(finalTime - initialTime)
+    totalTime = str(finalTime - initialTime)
+    return totalTime
 
+def make_rtt_matrix(self, N):
+    distances = {}
+    for ringo in pd_vector:
+        for r in pd_vector:
+            # calculates distance
+            d = rtt_calc(ringo, r)
+            # makes tuple of ringos to act as dict key
+            t = (ringo, r)
+            # puts key in dict with distance as value
+            distances[t] = d
 
+                    
+def calc_optimal_ring_form(self):
+    path = []
+    cost = 0
 
 
 
