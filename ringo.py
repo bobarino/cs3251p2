@@ -153,7 +153,7 @@ def rtt_recv(source,dest):
 
 
 def make_rtt_matrix(self, N):
-    distances = {}
+    distancesMatrix = {}
     for ringo in pd_vector:
         for r in pd_vector:
             # calculates distance
@@ -162,17 +162,31 @@ def make_rtt_matrix(self, N):
             t = (ringo, r)
             # puts key in dict with distance as value
             distances[t] = d
-    return distances
+    return distancesMatrix
 
               
-def calc_optimal_ring_form(self):
+def calc_optimal_ring_form(self, distancesMatrix):
     path = []
     cost = 0
-    forwarder = []
+    forwarder = [] 
     for ringo in pd_vector: 
         if self.FLAG == 'S':
             path.append(ringo)
-        
+        elif self.FLAG == 'F':
+            forwarder.append(ringo)
+        else: 
+            final = ringo
+
+    while len(forwarder != 0):
+        rem = len(forwarder)
+        # gets most recent path visit
+        src = path[-1]
+        small = []
+        for i in range(rem):
+            if distancesMatrix[src, forwarder[i]] > distancesMatrix[src, forwarder[i + 1]]:
+                small.append(distancesMatrix(src, forwarder[i + 1])
+
+
 
     
 
