@@ -17,6 +17,7 @@ class Server:
         self.cur_other_ringo_count = 0
         self.rtt_vector = []
         self.rtt_matrix = []
+        self.flag_dic = {}
 
         #self.pd_send_done = threading.Event()
         #print self.local_addr
@@ -58,6 +59,9 @@ class Server:
                     ringo_check = (d.split(",")[0], int(d.split(",")[1]))
                     if ringo_check not in self.ringo_vector:
                         self.ringo_vector.append(ringo_check)
+                for r in self.ringo_vector:
+                    #if r != (socket.gethostbyname(socket.gethostname()), int(self.udp_port)):
+                        sock.sendto("FLAG;", r)
                 rtt = threading.Thread(target=self.ringo_rtt_loop, args=(sock,)).start()
                 #print "Discovered Peers"
                 #print self.ringo_vector
@@ -80,8 +84,15 @@ class Server:
 
             if data.split(";")[0] == "RTTDONE":
                 self.sync_matrix(data)
-                time.sleep(3)
-                self.user_input(sock)
+                time.sleep(5)
+                input_thread = threading.Thread(target=self.user_input, args=(sock,)).start()
+
+            if data.split(";")[0] == "FLAG":
+                send_flag = "RECFLAG;" + self.flag
+                sock.sendto(send_flag, address)
+
+            if data.split(";")[0] == "RECFLAG":
+                self.flag_dic[address] = data.split(";")[1]
 
 
             #print "SERVER RINGO VECTOR"
@@ -165,16 +176,22 @@ class Server:
             t = ((d.split(",")[0], int(d.split(",")[1])), (d.split(",")[2], int(d.split(",")[3])), float(d.split(",")[4]))
             if t not in self.rtt_matrix:
                 self.rtt_matrix.append(t)
-        if len(self.rtt_matrix) == self.n * self.n:
+        if len(self.rtt_matrix) == self.n * self.n and self.poc_name == "0" and self.poc_port == 0:
+            time.sleep(2)
             send_matrix = "RTTDONE;"
             for rtt in self.rtt_matrix:
                 send_matrix += str(rtt[0][0]) + "," + str(rtt[0][1]) + "," + str(rtt[1][0]) + "," + str(rtt[1][1]) + "," + str(rtt[2]) + ";"
             for r in self.ringo_vector:
+                #if r != (socket.gethostbyname(socket.gethostname()), int(self.udp_port)):
                 sock.sendto(send_matrix, r)
             # print send
             # print "FINAL MATRIX"
             # print self.rtt_matrix
             # print len(self.rtt_matrix)
+
+    # def format_matrix(self):
+    #     for rtt in self.rtt_matrix:
+
 
     def sync_matrix(self, data):
         self.rtt_matrix = []
@@ -185,14 +202,53 @@ class Server:
                 self.rtt_matrix.append(t)
         #print self.rtt_matrix
 
-
-    def calc_optimal_ring_form(self):
+    def calc_optimal_ring_form(self, sock):
         path = []
-        cost = 0
         forwarder = []
-        for ringo in pd_vector:
-            if self.FLAG == 'S':
-                path.append(ringo)
+        for key, value in self.flag_dic.iteritems():
+            if value == 'S':
+                path = key
+            elif value == 'F':
+                forwarder.append(key)
+            else:
+                final = key
+
+        small = []
+        if len(forwarder) == 0:
+            small.append(path[1])
+            small.append(final[1])
+        elif len(forwarder) == 1:
+            small.append(path[1])
+            small.append(forwarder[0][1])
+            small.append(final[1])
+        else:
+            #self.shortest_path(path[-1], final[-1])
+            #self.travelling_salesman(self.rtt_matrix, path[-1])
+            #self.find_path(self.rtt_matrix, path[-1], final[-1])
+            cur_src = path[-1]
+            rem = len(forwarder)
+            small.append(cur_src)
+            visited = []
+            visited.append(cur_src)
+            while rem > 0:
+                # gets most recent path visit
+                cur_cost = 99999999
+                for rtt in self.rtt_matrix:
+                    if rtt[0][1] == cur_src:
+                        if rtt[2] != 0.0 and rtt[2] < cur_cost and rtt[1][1] not in visited:
+                            cur_src = rtt[1][1]
+                            visited.append(rtt[1][1])
+                            cur_cost = rtt[2]
+                small.append(cur_src)
+                rem -= 1
+            small.append(final[1])
+
+        return small
+
+    # def shortest_path(self, start, end):
+    #     for rtt in self.matrix:
+
+
 
     def ringo_rtt_loop(self, sock):
         for r in self.ringo_vector:
@@ -200,13 +256,15 @@ class Server:
                 self.rtt_calc(r, sock)
 
     def user_input(self, sock):
+        #print self.flag_dic
         #print self.rtt_matrix
-        while True:
-            data = raw_input('> ')
-            if not data:
-                continue
-            if data == "show-matrix":
-                print self.rtt_matrix
+        data = raw_input('> ')
+        if data == "show-matrix":
+            print self.rtt_matrix
+            self.user_input(sock)
+        if data == "show-ring":
+            print self.calc_optimal_ring_form(sock)
+            self.user_input(sock)
 
 if __name__ == "__main__":
 
