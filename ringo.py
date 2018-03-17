@@ -165,7 +165,7 @@ class Server:
         #sender = threading.Thread(target=self.handle_pd).start()
         #self.send_pd()
 
-    def ringoServer(self):
+    def ringo_server(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         local_server_addr = (socket.gethostbyname(socket.gethostname()), self.udp_port)
         #local_addr = (socket.gethostbyname(socket.gethostname()), self.socket.getsockname()[1])
@@ -183,12 +183,7 @@ class Server:
             if data.split(";")[0] == "PD":
                 self.peer_discovery_append(data.split(";")[1].split(",")[0], data.split(";")[1].split(",")[1])
                 if len(self.ringo_vector) != self.n and self.pd_done == False:
-                    update_vector = "PDUP;"
-                    for r in self.ringo_vector:
-                        update_vector += r[0] + "," + str(r[1]) + ";"
-                    for r in self.ringo_vector:
-                        if r != (socket.gethostbyname(socket.gethostname()), int(self.udp_port)):
-                            sock.sendto(update_vector, r)
+                    sender = threading.Thread(target=self.peer_discover_blast, args=(sock,)).start()
 
             if len(self.ringo_vector) == self.n and self.pd_done == False:
                 self.pd_done = True
@@ -204,18 +199,8 @@ class Server:
                     ringo_check = (d.split(",")[0], int(d.split(",")[1]))
                     if ringo_check not in self.ringo_vector:
                         self.ringo_vector.append(ringo_check)
-                #self.ringo_vector.pop()
-                #self.curRingoCount += 1
+                print "Discovered Peers"
                 print self.ringo_vector
-
-            # if len(self.ringo_vector) != self.n and self.pd_done == False:
-            # #    print "updating"
-            #     update_vector = "PDUP;"
-            #     for r in self.ringo_vector:
-            #         update_vector += r[0] + "," + str(r[1]) + ";"
-            #     for r in self.ringo_vector:
-            #         if r != (socket.gethostbyname(socket.gethostname()), int(self.udp_port)):
-            #             sock.sendto(update_vector, r)
 
             if data.split(";")[0] == "PDUP":
                 for d in data.split(";")[1:len(data.split(";"))-1]:
@@ -224,9 +209,9 @@ class Server:
                         self.peer_discovery_append(d.split(",")[0], d.split(",")[1])
 
             #print "SERVER RINGO VECTOR"
-            print self.ringo_vector
+            #print self.ringo_vector
 
-    def peerDiscovery(self):
+    def peer_discovery(self):
         print "PD Starting"
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         local_server_addr = (socket.gethostbyname(socket.gethostname()), self.udp_port)
@@ -240,20 +225,14 @@ class Server:
         if self.poc_name != "0" and self.poc_port != 0:
             self.peer_discovery_append(socket.gethostbyname(self.poc_name), self.poc_port)
 
-        #print self.curRingoCount
         while self.cur_other_ringo_count < self.n:
-        #    print self.ringo_vector
             pdPacket = "PD;"
             for r in self.ringo_vector:
                 pdPacket += r[0] + "," + str(r[1]) + ";"
 
             for r in self.ringo_vector:
                 if r != (socket.gethostbyname(socket.gethostname()), self.udp_port):
-                #    print "Sending to"
-                #    print r
                     sock.sendto(pdPacket, r)
-        #print self.ringo_vector
-
 
     def peer_discovery_append(self, client_address, server_port):
         new_ringo = (client_address, int(server_port))
@@ -261,6 +240,15 @@ class Server:
             self.ringo_vector.append(new_ringo)
             self.cur_other_ringo_count += 1
 
+    def peer_discover_blast(self, sock):
+        time.sleep(2)
+        #print "threading"
+        update_vector = "PDUP;"
+        for r in self.ringo_vector:
+            update_vector += r[0] + "," + str(r[1]) + ";"
+        for r in self.ringo_vector:
+            if r != (socket.gethostbyname(socket.gethostname()), int(self.udp_port)):
+                sock.sendto(update_vector, r)
 
 if __name__ == "__main__":
 
@@ -285,8 +273,8 @@ if __name__ == "__main__":
 
     server = Server(FLAG, UDP_PORT, POC_NAME, POC_PORT, N)
 
-    Thread(target=server.peerDiscovery).start()
-    Thread(target=server.ringoServer).start()
+    Thread(target=server.peer_discovery).start()
+    Thread(target=server.ringo_server).start()
 
 
     # server = Server(FLAG, UDP_PORT, POC_NAME, POC_PORT, N)
