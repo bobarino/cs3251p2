@@ -112,25 +112,45 @@ class Client(Thread):
 
 
 # -----------------------------------------------------
-def assignRingoID(pd_vector):
-    c = 0
-    for ringo in pd_vector:
-        ringo.id = c
-        c = c +1
 
-def rtt_calc(self, dest):
+def rtt_calc(source, dest):
     # initial time when sent
-    initialTime = time.time()
+    initialTime = time.clock()
+    msg = str(initialTime)
 
     # this is probs wrong
     # basically need to ping and get something back
-    reqTime = requests.get(dest)
+    # rtt_send(source, dest, msg)
+    rtt_recv(source, dest)
 
-     # time of ack
+    rtt_send(source, dest, msg)
+    
+    # time of ack
     finalTime = time.time()
-
+    s.close()
     totalTime = str(finalTime - initialTime)
     return totalTime
+
+
+def rtt_send(source, dest, msg):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((dest[0], dest[2]))
+    s.send(msg)
+    resp = s.recv(dest[2])
+    s.close()
+
+
+def rtt_recv(source,dest):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    host = socket.gethostname()
+    s.bind(host, dest[2])
+    s.listen()
+    connection, addr = s.accept()
+    m = connection.recv(source[2])
+    connection.send(m)
+    s.close()
+
+
 
 def make_rtt_matrix(self, N):
     distances = {}
@@ -142,12 +162,14 @@ def make_rtt_matrix(self, N):
             t = (ringo, r)
             # puts key in dict with distance as value
             distances[t] = d
+    return distances
 
-                    
+              
 def calc_optimal_ring_form(self):
     path = []
     cost = 0
 
+    
 
 
 
