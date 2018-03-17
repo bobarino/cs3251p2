@@ -203,11 +203,11 @@ class Server:
         #print self.rtt_matrix
 
     def calc_optimal_ring_form(self, sock):
-        path = []
+        starter = []
         forwarder = []
         for key, value in self.flag_dic.iteritems():
             if value == 'S':
-                path = key
+                starter = key
             elif value == 'F':
                 forwarder.append(key)
             else:
@@ -215,40 +215,77 @@ class Server:
 
         small = []
         if len(forwarder) == 0:
-            small.append(path[1])
+            small.append(starter[1])
             small.append(final[1])
         elif len(forwarder) == 1:
-            small.append(path[1])
+            small.append(starter[1])
             small.append(forwarder[0][1])
             small.append(final[1])
         else:
+            starting_list = []
+            for rtt in self.rtt_matrix:
+                if rtt[0][1] == starter[-1] and rtt[1][1] != starter[-1]:
+                    starting_list.append(rtt[1][1])
             #self.shortest_path(path[-1], final[-1])
             #self.travelling_salesman(self.rtt_matrix, path[-1])
             #self.find_path(self.rtt_matrix, path[-1], final[-1])
-            cur_src = path[-1]
-            rem = len(forwarder)
-            small.append(cur_src)
-            visited = []
-            visited.append(cur_src)
-            while rem > 0:
-                # gets most recent path visit
-                cur_cost = 99999999
-                for rtt in self.rtt_matrix:
-                    if rtt[0][1] == cur_src:
-                        if rtt[2] != 0.0 and rtt[2] < cur_cost and rtt[1][1] not in visited:
-                            cur_src = rtt[1][1]
-                            visited.append(rtt[1][1])
-                            cur_cost = rtt[2]
-                small.append(cur_src)
-                rem -= 1
-            small.append(final[1])
+            rtt_without_start = []
+            for x in self.rtt_matrix:
+                if x[0][1] != starter[-1]:
+                    rtt_without_start.append(x)
+
+            all_paths = [[[starter[-1]]+y for y in self.find_all_paths(rtt_without_start,x,final[-1])] for x in starting_list]
+            test_paths = []
+            for x in all_paths:
+                for y in x:
+                    if len(y) == 4:
+                        test_paths.append(y)
+            lowest_cost = 9999999
+            lowest_path = []
+            for t in test_paths:
+                cur_cost = 0
+                for r in self.rtt_matrix:
+                    for i in range(len(t) - 1):
+                        if r[0][1] == t[i] and r[1][1] == t[i + 1]:
+                            cur_cost += r[2]
+                if cur_cost < lowest_cost:
+                    lowest_cost = cur_cost
+                    lowest_path = t
+            return lowest_path
+
+            #self.find_all_paths(self.rtt_matrix, path[-1], final[-1])
+            # cur_src = path[-1]
+            # rem = len(forwarder)
+            # small.append(cur_src)
+            # visited = []
+            # visited.append(cur_src)
+            # while rem > 0:
+            #     # gets most recent path visit
+            #     cur_cost = 99999999
+            #     for rtt in self.rtt_matrix:
+            #         if rtt[0][1] == cur_src:
+            #             if rtt[2] != 0.0 and rtt[2] < cur_cost and rtt[1][1] not in visited:
+            #                 cur_src = rtt[1][1]
+            #                 visited.append(rtt[1][1])
+            #                 cur_cost = rtt[2]
+            #     small.append(cur_src)
+            #     rem -= 1
+            # small.append(final[1])
 
         return small
 
-    # def shortest_path(self, start, end):
-    #     for rtt in self.matrix:
-
-
+    def find_all_paths(matrix, start, end, path=[]):
+        path = path + [start]
+        if start == end:
+            return [path]
+        paths = []
+        for x in matrix:
+            if x[0][1] == start:
+                if x[1][1] not in path:
+                    newpaths = find_all_paths(matrix, x[1][1], end, path)
+                    for newpath in newpaths:
+                        paths.append(newpath)
+        return paths
 
     def ringo_rtt_loop(self, sock):
         for r in self.ringo_vector:
