@@ -99,14 +99,12 @@ class Server:
             #print self.ringo_vector
 
     def peer_discovery(self):
-        print "PD Starting"
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         local_server_addr = (socket.gethostbyname(socket.gethostname()), self.udp_port)
         #local_addr = (socket.gethostbyname(socket.gethostname()), self.socket.getsockname()[1])
         sock.bind(('',0))
         #if (socket.gethostbyname(socket.gethostname()), self.udp_port) not in self.ringo_vector:
         self.ringo_vector.append((socket.gethostbyname(socket.gethostname()), self.udp_port) )
-        print "APPENDED INITIAL"
         #self.peer_discovery_append(socket.gethostbyname(socket.gethostname()), self.udp_port)
 
         if self.poc_name != "0" and self.poc_port != 0:
@@ -163,13 +161,11 @@ class Server:
                 if t_add not in self.rtt_matrix:
                     self.rtt_matrix.append(t_add)
             send_vec = "RTTVEC;"
-            #for key, value in self.rtt_vector.iteritems():
             for rtt in self.rtt_vector:
                 send_vec += str(rtt[0][0]) + "," + str(rtt[0][1]) + "," + str(rtt[1][0]) + "," + str(rtt[1][1]) + "," + str(rtt[2]) + ";"
             for r in self.ringo_vector:
                 if r != (socket.gethostbyname(socket.gethostname()), int(self.udp_port)):
                     sock.sendto(send_vec, r)
-        # print len(self.rtt_vector)
 
     def add_vec_to_matrix(self, data, sock):
         for d in data.split(";")[1:len(data.split(";"))-1]:
@@ -182,15 +178,7 @@ class Server:
             for rtt in self.rtt_matrix:
                 send_matrix += str(rtt[0][0]) + "," + str(rtt[0][1]) + "," + str(rtt[1][0]) + "," + str(rtt[1][1]) + "," + str(rtt[2]) + ";"
             for r in self.ringo_vector:
-                #if r != (socket.gethostbyname(socket.gethostname()), int(self.udp_port)):
                 sock.sendto(send_matrix, r)
-            # print send
-            # print "FINAL MATRIX"
-            # print self.rtt_matrix
-            # print len(self.rtt_matrix)
-
-    # def format_matrix(self):
-    #     for rtt in self.rtt_matrix:
 
 
     def sync_matrix(self, data):
@@ -202,9 +190,23 @@ class Server:
                 self.rtt_matrix.append(t)
         #print self.rtt_matrix
 
+    def find_all_paths(self, matrix, start, end, path=[]):
+        path = path + [start]
+        if start == end:
+            return [path]
+        paths = []
+        for x in matrix:
+            if x[0][1] == start:
+                if x[1][1] not in path:
+                    newpaths = self.find_all_paths(matrix, x[1][1], end, path)
+                    for newpath in newpaths:
+                        paths.append(newpath)
+        return paths
+
     def calc_optimal_ring_form(self, sock):
         starter = []
         forwarder = []
+        final = []
         for key, value in self.flag_dic.iteritems():
             if value == 'S':
                 starter = key
@@ -226,9 +228,7 @@ class Server:
             for rtt in self.rtt_matrix:
                 if rtt[0][1] == starter[-1] and rtt[1][1] != starter[-1]:
                     starting_list.append(rtt[1][1])
-            #self.shortest_path(path[-1], final[-1])
-            #self.travelling_salesman(self.rtt_matrix, path[-1])
-            #self.find_path(self.rtt_matrix, path[-1], final[-1])
+
             rtt_without_start = []
             for x in self.rtt_matrix:
                 if x[0][1] != starter[-1]:
@@ -240,6 +240,7 @@ class Server:
                 for y in x:
                     if len(y) == 4:
                         test_paths.append(y)
+
             lowest_cost = 9999999
             lowest_path = []
             for t in test_paths:
@@ -251,41 +252,9 @@ class Server:
                 if cur_cost < lowest_cost:
                     lowest_cost = cur_cost
                     lowest_path = t
-            return lowest_path
-
-            #self.find_all_paths(self.rtt_matrix, path[-1], final[-1])
-            # cur_src = path[-1]
-            # rem = len(forwarder)
-            # small.append(cur_src)
-            # visited = []
-            # visited.append(cur_src)
-            # while rem > 0:
-            #     # gets most recent path visit
-            #     cur_cost = 99999999
-            #     for rtt in self.rtt_matrix:
-            #         if rtt[0][1] == cur_src:
-            #             if rtt[2] != 0.0 and rtt[2] < cur_cost and rtt[1][1] not in visited:
-            #                 cur_src = rtt[1][1]
-            #                 visited.append(rtt[1][1])
-            #                 cur_cost = rtt[2]
-            #     small.append(cur_src)
-            #     rem -= 1
-            # small.append(final[1])
+            small = lowest_path
 
         return small
-
-    def find_all_paths(matrix, start, end, path=[]):
-        path = path + [start]
-        if start == end:
-            return [path]
-        paths = []
-        for x in matrix:
-            if x[0][1] == start:
-                if x[1][1] not in path:
-                    newpaths = find_all_paths(matrix, x[1][1], end, path)
-                    for newpath in newpaths:
-                        paths.append(newpath)
-        return paths
 
     def ringo_rtt_loop(self, sock):
         for r in self.ringo_vector:
@@ -302,6 +271,9 @@ class Server:
         if data == "show-ring":
             print self.calc_optimal_ring_form(sock)
             self.user_input(sock)
+        else:
+            print "That statement does not work at this moment. The only commands that work are show-matrix and show-ring. Please try again"
+            self.user_input(sock)
 
 if __name__ == "__main__":
 
@@ -313,12 +285,17 @@ if __name__ == "__main__":
         print "You must enter in the UDP port number of the PoC for this Ringo (0 if it doesn't have one) as your 4th argument."
         print "You must enter in the total number or Ringos as the last argument."
         sys.exit(1)
+    if sys.argv[1] != "F" and sys.argv[1] != "S" and sys.argv[1] != "R":
+        print "You can only enter the flag as S, R, or F"
+        sys.exit(1)
+    if int(sys.argv[5]) < 1:
+        print "Your number of ringos entered is too small. Please pick a higher value"
+        sys.exit(1)
 
     FLAG = sys.argv[1]
-    #FIX LATER
-    #UDP_PORT = 50000
-    #if int(sys.argv[2]) > 49152 and int(sys.argv[2]) < 65535:
-    UDP_PORT = int(sys.argv[2])
+    UDP_PORT = 50000
+    if int(sys.argv[2]) > 49152 and int(sys.argv[2]) < 65535:
+        UDP_PORT = int(sys.argv[2])
     BUFFER_SIZE = 1024
     POC_NAME = sys.argv[3]
     POC_PORT = int(sys.argv[4])
@@ -328,13 +305,3 @@ if __name__ == "__main__":
 
     Thread(target=server.peer_discovery).start()
     Thread(target=server.ringo_server).start()
-    #time.sleep(3)
-    #Thread(target=server.user_input).start()
-
-
-    # server = Server(FLAG, UDP_PORT, POC_NAME, POC_PORT, N)
-    # client = Client(FLAG, UDP_PORT, POC_NAME, POC_PORT, N)
-    #
-    # server.start()
-    # client.start()
-    # server.join()
