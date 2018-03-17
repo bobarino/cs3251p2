@@ -8,7 +8,9 @@ Files Submitted:
  - README.txt : file detailing our implementation
 
 
-to run program:
+To run program:
+User input cannot be inputted until Peer Discovery is complete. Please wait ~5 seconds to ensure it is all sent correctly. 
+
 python ringo.py <flag> <local-port> <POC-name> <POC-Port> <N>
 
 - <flag>: type of Ringo
@@ -20,4 +22,6 @@ python ringo.py <flag> <local-port> <POC-name> <POC-Port> <N>
 - <POC-port>: the UDP port number of the POC for this ringo. 0 if ringo has no POC
 - <N>: total number of ringos when theyre all active
 
-
+Working Commands:
+    show-matrix: shows RTT matrix
+    show-ring: shows path for optimal ring
