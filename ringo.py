@@ -168,6 +168,11 @@ def make_rtt_matrix(self, N):
 def calc_optimal_ring_form(self):
     path = []
     cost = 0
+    forwarder = []
+    for ringo in pd_vector: 
+        if self.FLAG == 'S':
+            path.append(ringo)
+        
 
     
 
