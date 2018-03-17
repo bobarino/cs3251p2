@@ -9,18 +9,22 @@ Files Submitted:
 
 
 To run program:
-User input cannot be inputted until Peer Discovery is complete. Please wait ~5 seconds to ensure it is all sent correctly. 
+    User input cannot be inputted until Peer Discovery is complete. Please wait ~5 seconds to ensure it is all sent correctly. 
 
-python ringo.py <flag> <local-port> <POC-name> <POC-Port> <N>
+    python ringo.py <flag> <local-port> <POC-name> <POC-Port> <N>
 
-- <flag>: type of Ringo
-    S: Sender
-    R: Receiver
-    F: Forwarder
-- <local-port>: the UDP port number the Ringo will use 
-- <POC-name>: host name of POC. 0 if the ringo has no POC
-- <POC-port>: the UDP port number of the POC for this ringo. 0 if ringo has no POC
-- <N>: total number of ringos when theyre all active
+    - <flag>: type of Ringo
+        S: Sender
+        R: Receiver
+        F: Forwarder
+    - <local-port>: the UDP port number the Ringo will use 
+    - <POC-name>: host name of POC. 0 if the ringo has no POC
+    - <POC-port>: the UDP port number of the POC for this ringo. 0 if ringo has no POC
+    - <N>: total number of ringos when theyre all active
+
+    IMPORTANT: 
+        - There must be one sender ringo and one receiver ringo, no more than one is allowed.
+	- Only input data when a ">" is shown on the prompt
 
 Working Commands:
     show-matrix: shows RTT matrix
