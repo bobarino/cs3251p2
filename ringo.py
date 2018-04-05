@@ -238,7 +238,7 @@ class Server:
             test_paths = []
             for x in all_paths:
                 for y in x:
-                    if len(y) == 4:
+                    if len(y) == self.N:
                         test_paths.append(y)
 
             lowest_cost = 9999999
