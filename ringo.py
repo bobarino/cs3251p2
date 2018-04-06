@@ -18,6 +18,7 @@ class Server:
         self.rtt_vector = []
         self.rtt_matrix = []
         self.flag_dic = {}
+        self.filename = ""
 
         #self.pd_send_done = threading.Event()
         #print self.local_addr
@@ -94,9 +95,31 @@ class Server:
             if data.split(";")[0] == "RECFLAG":
                 self.flag_dic[address] = data.split(";")[1]
 
+            if data.split(";")[0] == "FILE":
+                if self.flag == "R":
+                    print "Got file"
+                    new_filename = data.split(";")[1].split(".")[0] + "_new" + "." + data.split(";")[1].split(".")[1]
+                    self.filename = new_filename#data.split(";")[1]
+                else:
+                    self.data_rec(data, sock)
 
-            #print "SERVER RINGO VECTOR"
-            #print self.ringo_vector
+            if data.split(";")[0] == "DSEND" or data.split(";")[0] == "DDONE":
+                print "Got data"
+                if self.flag == "R":
+                    if data.split(";")[0] == "DDONE":
+                        print "Got to DDONEFINAL"
+                        self.user_input(sock)
+                        #input_thread = threading.Thread(target=self.user_input, args=(sock,)).start()
+                    else:
+                        self.data_done(data.split(";")[1])
+                else:
+                    if data.split(";")[0] == "DDONE":
+                        print "Got to DDONE"
+                        self.data_rec(data, sock)
+                        self.user_input(sock)
+                        #input_thread = threading.Thread(target=self.user_input, args=(sock,)).start()
+                    else:
+                        self.data_rec(data, sock)
 
     def peer_discovery(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -238,7 +261,7 @@ class Server:
             test_paths = []
             for x in all_paths:
                 for y in x:
-                    if len(y) == self.N:
+                    if len(y) == self.n:
                         test_paths.append(y)
 
             lowest_cost = 9999999
@@ -261,9 +284,39 @@ class Server:
             if r != (socket.gethostbyname(socket.gethostname()), int(self.udp_port)):
                 self.rtt_calc(r, sock)
 
+    def send_data(self, filename, sock):
+        travel_path = self.calc_optimal_ring_form(sock)
+        file_string = "FILE;" + filename
+        sock.sendto(file_string, (socket.gethostbyname(socket.gethostname()), travel_path[1]))
+        #send_string = "DSEND;"
+        f = open(filename,"rb")
+        send_data = f.read(BUFFER_SIZE)
+        while send_data:
+            send_string = "DSEND;" + send_data
+            sock.sendto(send_string, (socket.gethostbyname(socket.gethostname()), travel_path[1]))
+            print "sending"
+            send_data = f.read(BUFFER_SIZE)
+        sock.sendto("DDONE;", (socket.gethostbyname(socket.gethostname()), travel_path[1]))
+
+    def data_rec(self, data, sock):
+        print "attempting to resend to:"
+        travel_path = self.calc_optimal_ring_form(sock)
+        i = 0
+        for x in travel_path:
+            if x == self.udp_port:
+                i += 1
+                break
+            i += 1
+        print travel_path[i]
+        sock.sendto(data, (socket.gethostbyname(socket.gethostname()), travel_path[i]))
+
+    def data_done(self, data):
+        print "Got to final destination"
+        with open(self.filename, 'a') as f:
+            f.write(data)
+        print "DONE"
+
     def user_input(self, sock):
-        #print self.flag_dic
-        #print self.rtt_matrix
         data = raw_input('> ')
         if data == "show-matrix":
             print self.rtt_matrix
@@ -271,9 +324,14 @@ class Server:
         if data == "show-ring":
             print self.calc_optimal_ring_form(sock)
             self.user_input(sock)
+        if data.split(" ")[0] == "send" and self.flag == "S":
+            filename = data.split(" ")[1]
+            self.send_data(filename, sock)
+            self.user_input(sock)
         else:
             print "That statement does not work at this moment. The only commands that work are show-matrix and show-ring. Please try again"
             self.user_input(sock)
+
 
 if __name__ == "__main__":
 
