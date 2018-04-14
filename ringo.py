@@ -115,6 +115,8 @@ class Server:
                     if self.flag == "R":
                         new_filename = d[1].split(".")[0] + "_new" + "." + d[1].split(".")[1]
                         self.filename = new_filename
+                        p = packet.create_packet(self.udp_port, address[1], d[0].split("%")[2], d[0].split("%")[3], "DACK", "")
+                        sock.sendto(packet.packet_to_bytes(p), address)
                     else:
                         self.data_rec(d, sock, address)
 
