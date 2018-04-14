@@ -33,8 +33,8 @@ def calculate_checksum(data):
 #RTTREDO -> Restart RTT after an offline ringo comes back online
 
 
-def create_packet(srcPort, destPort, seqNum, ackNum, packType, window_size, data, lastPacket=0):
-    header = "$$" + str(srcPort) + "%" + str(destPort) + "%" + str(seqNum) + "%" + str(ackNum) + "%" + str(packType) + "%" + str(window_size) + "%" + str(lastPacket) + "%"
+def create_packet(srcPort, destPort, seqNum, ackNum, packType, data):
+    header = "$$" + str(srcPort) + "%" + str(destPort) + "%" + str(seqNum) + "%" + str(ackNum) + "%" + str(packType) + "%"
     checkSum = calculate_checksum(header + data)
     header += str(checkSum) + "$$"
 

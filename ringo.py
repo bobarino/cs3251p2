@@ -29,13 +29,10 @@ class Server:
         self.pack_seq = 0
         self.ack_seq = 0
         self.data_send_block = False
-        self.send_string = ""
+        self.send_packet = packet.create_packet("","","","","","")
 
     def ringo_server(self):
-        #print "started server"
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        local_server_addr = (socket.gethostbyname(socket.gethostname()), self.udp_port)
-        #local_addr = (socket.gethostbyname(socket.gethostname()), self.socket.getsockname()[1])
         sock.bind(('', self.udp_port))
 
         while True:
@@ -45,91 +42,100 @@ class Server:
                 if not data:
                     continue
 
-                if data.split(";")[0] == "KA":
-                    sock.sendto("KAACK;", address)
+                d = packet.deconstruct_packet(packet.bytes_to_packet(data))
+                print d
+                if d[0].split("%")[4] == "KA":
+                    p = packet.create_packet(self.udp_port, address[1], self.pack_seq, self.ack_seq, "KAACK", "")
+                    sock.sendto(packet.packet_to_bytes(p), address)
 
-                if data.split(";")[0] == "KAACK":
+                if d[0].split("%")[4] == "KAACK":
                     if address not in self.alive_vector:
                         self.alive_vector.append(address)
 
-                if data.split(";")[0] == "PD":
-                    self.peer_discovery_append(data.split(";")[1].split(",")[0], data.split(";")[1].split(",")[1])
+                if d[0].split("%")[4] == "PD":
+                    self.peer_discovery_append(d[1].split(";")[0].split(",")[0], d[1].split(";")[0].split(",")[1])
                     if len(self.ringo_vector) != self.n and self.pd_done == 0:
                         #self.blast_running = True
                         sender = threading.Thread(target=self.peer_discover_blast, args=(sock,)).start()
 
                 if len(self.ringo_vector) == self.n and self.pd_done == 0:
                     self.pd_done = 1
-                    final_vector = "PDDONE;"
+                    final_vector = ""
                     for r in self.ringo_vector:
                         final_vector += r[0] + "," + str(r[1]) + ";"
                     for r in self.ringo_vector:
                         if r != (socket.gethostbyname(socket.gethostname()), int(self.udp_port)):
-                            sock.sendto(final_vector, r)
+                            p = packet.create_packet(self.udp_port, r[1], self.pack_seq, self.ack_seq, "PDDONE", final_vector)
+                            sock.sendto(packet.packet_to_bytes(p), r)
+
                     self.blast_running = False
 
-                if data.split(";")[0] == "PDDONE":
-                    for d in data.split(";")[1:len(data.split(";"))-1]:
-                        ringo_check = (d.split(",")[0], int(d.split(",")[1]))
+                if d[0].split("%")[4] == "PDDONE":
+                    for da in d[1].split(";")[0:len(d[1].split(";"))-1]:
+                        ringo_check = (da.split(",")[0], int(da.split(",")[1]))
                         if ringo_check not in self.ringo_vector:
                             self.ringo_vector.append(ringo_check)
                     for r in self.ringo_vector:
                         #if r != (socket.gethostbyname(socket.gethostname()), int(self.udp_port)):
-                        sock.sendto("FLAG;", r)
+                        p = packet.create_packet(self.udp_port, r[1], self.pack_seq, self.ack_seq, "FLAG", "")
+                        sock.sendto(packet.packet_to_bytes(p), r)
                     rtt = threading.Thread(target=self.ringo_rtt_loop, args=(sock,)).start()
 
-                if data.split(";")[0] == "PDUP":
-                    for d in data.split(";")[1:len(data.split(";"))-1]:
-                        ringo_check = (d.split(",")[0], int(d.split(",")[1]))
+                if d[0].split("%")[4] == "PDUP":
+                    for da in d[1].split(";")[0:len(d[1].split(";"))-1]:
+                        ringo_check = (da.split(",")[0], int(da.split(",")[1]))
                         if ringo_check not in self.ringo_vector:
-                            self.peer_discovery_append(d.split(",")[0], d.split(",")[1])
+                            self.peer_discovery_append(da.split(",")[0], da.split(",")[1])
 
-                if data.split(";")[0] == "RTTSEND":
-                    data_rec = "RTTREC;" + data.split(";")[1]
-                    sock.sendto(data_rec, address)
+                if d[0].split("%")[4] == "RTTSEND":
+                    p = packet.create_packet(self.udp_port, address[1], self.pack_seq, self.ack_seq, "RTTREC", d[1])
+                    sock.sendto(packet.packet_to_bytes(p), address)
 
-                if data.split(";")[0] == "RTTREC":
-                    self.rtt_recv(time.time(), data.split(";")[1], address, sock)
+                if d[0].split("%")[4] == "RTTREC":
+                    self.rtt_recv(time.time(), d[1], address, sock)
 
-                if data.split(";")[0] == "RTTVEC":
-                    self.add_vec_to_matrix(data, sock)
+                if d[0].split("%")[4] == "RTTVEC":
+                    self.add_vec_to_matrix(d[1], sock)
 
-                if data.split(";")[0] == "RTTDONE":
-                    self.sync_matrix(data)
+                if d[0].split("%")[4] == "RTTDONE":
+                    self.sync_matrix(d[1])
                     time.sleep(5)
                     if self.ka_on == False:
                         input_thread = threading.Thread(target=self.user_input, args=(sock,)).start()
                         ka_thread = threading.Thread(target=self.ka, args=(sock,)).start()
 
-                if data.split(";")[0] == "FLAG":
-                    send_flag = "RECFLAG;" + self.flag
-                    sock.sendto(send_flag, address)
+                if d[0].split("%")[4] == "FLAG":
+                    p = packet.create_packet(self.udp_port, address[1], self.pack_seq, self.ack_seq, "RECFLAG", self.flag)
+                    sock.sendto(packet.packet_to_bytes(p), address)
 
-                if data.split(";")[0] == "RECFLAG":
-                    self.flag_dic[address] = data.split(";")[1]
+                if d[0].split("%")[4] == "RECFLAG":
+                    self.flag_dic[address] = d[1]
 
-                if data.split(";")[0] == "FILE":
-                    print data
+                if d[0].split("%")[4] == "FILE":
                     if self.flag == "R":
-                        new_filename = data.split(";")[3].split(".")[0] + "_new" + "." + data.split(";")[3].split(".")[1]
-                        self.filename = new_filename#data.split(";")[1]
+                        new_filename = d[1].split(".")[0] + "_new" + "." + d[1].split(".")[1]
+                        self.filename = new_filename
                     else:
-                        self.data_rec(data, sock, address)
+                        self.data_rec(d, sock, address)
 
-                if data.split(";")[0] == "DSEND" or data.split(";")[0] == "DDONE":
-                    print data
+                if d[0].split("%")[4] == "DSEND" or d[0].split("%")[4] == "DDONE":
                     if self.flag == "R":
-                        if data.split(";")[0] != "DDONE":
-                            self.data_done(data, sock, address)
-                    else:
-                        if data.split(";")[0] == "DDONE":
-                            self.data_rec_done(data, sock, address)
+                        if d[0].split("%")[4] != "DDONE":
+                            self.data_done(d, sock, address)
                         else:
-                            self.data_rec(data, sock, address)
+                            p = packet.create_packet(self.udp_port, address[1], d[0].split("%")[2], d[0].split("%")[3], "DDONEACK", "")
+                            sock.sendto(packet.packet_to_bytes(p), address)
+                    else:
+                        if d[0].split("%")[4] == "DDONE":
+                            self.data_rec_done(d, sock, address)
+                        else:
+                            self.data_rec(d, sock, address)
 
-                if data.split(";")[0] == "DACK":
-                    check_pack_num = data.split(";")[1]
-                    check_ack_num = data.split(";")[2]
+                if d[0].split("%")[4] == "DACK":
+                    check_pack_num = d[0].split("%")[2]
+                    check_ack_num = d[0].split("%")[3]
+                    print self.pack_seq
+                    print self.ack_seq
                     if int(check_pack_num) == self.pack_seq and int(check_ack_num) == self.ack_seq:
                         print "Received the correct packet ack"
                         self.pack_seq += 1
@@ -140,25 +146,26 @@ class Server:
 
                         self.data_send_block = True
                     else:
-                        sock.sendto(self.send_string, address)
+                        sock.sendto(packet.packet_to_bytes(self.send_packet), address)
                         #NEED TO RESEND
                         #Need to implement timeout time
 
-                if data.split(";")[0] == "PDREV":
-                    for d in data.split(";")[1:len(data.split(";"))-1]:
-                        ringo_check = (d.split(",")[0], int(d.split(",")[1]))
+                if d[0].split("%")[4] == "DDONEACK":
+                    self.data_send_block = False
+
+                if d[0].split("%")[4] == "PDREV":
+                    for da in d[1].split(";")[0:len(d[1].split(";"))-1]:
+                        ringo_check = (da.split(",")[0], int(da.split(",")[1]))
                         if ringo_check not in self.ringo_vector:
                             self.ringo_vector.append(ringo_check)
                     for r in self.ringo_vector:
-                        sock.sendto("FLAG;", r)
+                        #if r != (socket.gethostbyname(socket.gethostname()), int(self.udp_port)):
+                        p = packet.create_packet(self.udp_port, r[1], self.pack_seq, self.ack_seq, "FLAG", "")
+                        sock.sendto(packet.packet_to_bytes(p), r)
                     self.pd_done = 1
                     self.cur_other_ringo_count = self.n - 1
 
-                if data.split(";")[0] == "RTTREV":
-                    for r in self.ringo_vector:
-                        sock.sendto("RTTREDO;", r)
-
-                if data.split(";")[0] == "RTTREDO":
+                if d[0].split("%")[4] == "RTTREDO":
                     self.rtt_vector = []
                     self.rtt_matrix = []
                     self.rtt_vec_check = False
@@ -167,7 +174,6 @@ class Server:
     def peer_discovery(self):
         self.blast_running = True
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        local_server_addr = (socket.gethostbyname(socket.gethostname()), self.udp_port)
         sock.bind(('',0))
         self.ringo_vector.append((socket.gethostbyname(socket.gethostname()), self.udp_port))
 
@@ -176,13 +182,14 @@ class Server:
 
         while self.cur_other_ringo_count < self.n and self.blast_running == True:
 
-            pdPacket = "PD;"
+            pdPacket = ""
             for r in self.ringo_vector:
                 pdPacket += r[0] + "," + str(r[1]) + ";"
 
             for r in self.ringo_vector:
                 if r != (socket.gethostbyname(socket.gethostname()), self.udp_port):
-                    sock.sendto(pdPacket, r)
+                    p = packet.create_packet(self.udp_port, r[1], self.pack_seq, self.ack_seq, "PD", pdPacket)
+                    sock.sendto(packet.packet_to_bytes(p), r)
                     time.sleep(1)
 
     def peer_discovery_append(self, client_address, server_port):
@@ -193,27 +200,27 @@ class Server:
 
     def peer_discover_blast(self, sock):
         while self.blast_running:
-            update_vector = "PDUP;"
+            update_vector = ""
             for r in self.ringo_vector:
                 update_vector += r[0] + "," + str(r[1]) + ";"
             for r in self.ringo_vector:
                 if r != (socket.gethostbyname(socket.gethostname()), int(self.udp_port)):
-                    sock.sendto(update_vector, r)
+                    p = packet.create_packet(self.udp_port, r[1], self.pack_seq, self.ack_seq, "PDUP", update_vector)
+                    sock.sendto(packet.packet_to_bytes(p), r)
 
     def rtt_calc(self, dest, sock):
         # initial time when sent
         initialTime = time.time()
-        msg = "RTTSEND;" + str(initialTime)
-        sock.sendto(msg, dest)
+        p = packet.create_packet(self.udp_port, dest[1], self.pack_seq, self.ack_seq, "RTTSEND", str(initialTime))
+        sock.sendto(packet.packet_to_bytes(p), dest)
 
     def rtt_recv(self, final, initial, address, sock):
         my_t = ((socket.gethostbyname(socket.gethostname()), int(self.udp_port)), (socket.gethostbyname(socket.gethostname()), int(self.udp_port)), 0.0)
         if my_t not in self.rtt_vector:
             self.rtt_vector.append(my_t)
         t = ((socket.gethostbyname(socket.gethostname()), int(self.udp_port)), address, final - float(initial))
-        # if t not in self.rtt_vector:
-        #     self.rtt_vector.append(t)
         rtt_vec_check = True
+
         for v in self.rtt_vector:
             if t[0] == v[0] and t[1] == v[1]:
                 rtt_vec_check = False
@@ -222,32 +229,33 @@ class Server:
 
         if len(self.rtt_vector) == self.n and self.rtt_vec_check == False:
             self.rtt_vec_check = True
-            #self_t = ((socket.gethostbyname(socket.gethostname()), self.udp_port), (socket.gethostbyname(socket.gethostname()), self.udp_port), 0)
-            #if self_t not in self.rtt_matrix:
-            #    self.rtt_matrix.append(self_t)
             for rtt in self.rtt_vector:
                 t_add = (rtt[0], rtt[1], rtt[2])
                 if t_add not in self.rtt_matrix:
                     self.rtt_matrix.append(t_add)
-            send_vec = "RTTVEC;"
+
+            send_vec = ""
             for rtt in self.rtt_vector:
                 send_vec += str(rtt[0][0]) + "," + str(rtt[0][1]) + "," + str(rtt[1][0]) + "," + str(rtt[1][1]) + "," + str(rtt[2]) + ";"
             for r in self.ringo_vector:
                 if r != (socket.gethostbyname(socket.gethostname()), int(self.udp_port)):
-                    sock.sendto(send_vec, r)
+                    p = packet.create_packet(self.udp_port, r[1], self.pack_seq, self.ack_seq, "RTTVEC", send_vec)
+                    sock.sendto(packet.packet_to_bytes(p), r)
 
     def add_vec_to_matrix(self, data, sock):
-        for d in data.split(";")[1:len(data.split(";"))-1]:
+        for d in data.split(";")[0:len(data.split(";"))-1]:
             t = ((d.split(",")[0], int(d.split(",")[1])), (d.split(",")[2], int(d.split(",")[3])), float(d.split(",")[4]))
             if t not in self.rtt_matrix:
                 self.rtt_matrix.append(t)
+
         if len(self.rtt_matrix) == self.n * self.n and self.poc_name == "0" and self.poc_port == 0:
             time.sleep(2)
-            send_matrix = "RTTDONE;"
+            send_matrix = ""
             for rtt in self.rtt_matrix:
                 send_matrix += str(rtt[0][0]) + "," + str(rtt[0][1]) + "," + str(rtt[1][0]) + "," + str(rtt[1][1]) + "," + str(rtt[2]) + ";"
             for r in self.ringo_vector:
-                sock.sendto(send_matrix, r)
+                p = packet.create_packet(self.udp_port, r[1], self.pack_seq, self.ack_seq, "RTTDONE", send_matrix)
+                sock.sendto(packet.packet_to_bytes(p), r)
 
     def ringo_rtt_loop(self, sock):
         for r in self.ringo_vector:
@@ -256,11 +264,10 @@ class Server:
 
     def sync_matrix(self, data):
         self.rtt_matrix = []
-        for d in data.split(";")[1:len(data.split(";"))-1]:
+        for d in data.split(";")[0:len(data.split(";"))-1]:
             t = ((d.split(",")[0], int(d.split(",")[1])), (d.split(",")[2], int(d.split(",")[3])), float(d.split(",")[4]))
             if t not in self.rtt_matrix:
                 self.rtt_matrix.append(t)
-
 
     def find_all_paths(self, matrix, start, end, path=[]):
         path = path + [start]
@@ -342,19 +349,23 @@ class Server:
 
     def send_data(self, filename, sock):
         travel_path = self.calc_optimal_ring_form(sock)
-        file_string = "FILE;" + str(self.pack_seq) + ";" + str(self.ack_seq) + ";" + filename
-        sock.sendto(file_string, (socket.gethostbyname(socket.gethostname()), travel_path[1]))
+        p = packet.create_packet(self.udp_port, travel_path[1], self.pack_seq, self.ack_seq, "FILE", filename)
+        sock.sendto(packet.packet_to_bytes(p), (socket.gethostbyname(socket.gethostname()), travel_path[1]))
         f = open(filename,"rb")
-        send_data = f.read(BUFFER_SIZE)
+        send_data = f.read(512)
+
         while send_data:
             if self.data_send_block:
-                self.send_string = "DSEND;" + str(self.pack_seq) + ";" + str(self.ack_seq) + ";" + send_data
-                sock.sendto(self.send_string, (socket.gethostbyname(socket.gethostname()), travel_path[1]))
-                send_data = f.read(BUFFER_SIZE)
+                p = packet.create_packet(self.udp_port, travel_path[1], self.pack_seq, self.ack_seq, "DSEND", send_data)
+                self.send_packet = p
+                sock.sendto(packet.packet_to_bytes(self.send_packet), (socket.gethostbyname(socket.gethostname()), travel_path[1]))
+                send_data = f.read(512)
                 self.data_send_block = False
-        sock.sendto("DDONE;", (socket.gethostbyname(socket.gethostname()), travel_path[1]))
 
-    def data_rec(self, data, sock, address):
+        p = packet.create_packet(self.udp_port, travel_path[1], self.pack_seq, self.ack_seq, "DDONE", "")
+        sock.sendto(packet.packet_to_bytes(p), (socket.gethostbyname(socket.gethostname()), travel_path[1]))
+
+    def data_rec(self, d, sock, address):
         travel_path = self.calc_optimal_ring_form(sock)
         i = 0
         for x in travel_path:
@@ -362,11 +373,13 @@ class Server:
                 i += 1
                 break
             i += 1
-        return_string = "DACK;" + data.split(";")[1] + ";" + data.split(";")[2]
-        sock.sendto(return_string, address)
-        sock.sendto(data, (socket.gethostbyname(socket.gethostname()), travel_path[i]))
 
-    def data_rec_done(self, data, sock, address):
+        p = packet.create_packet(self.udp_port, address[1], d[0].split("%")[2], d[0].split("%")[3], "DACK", "")
+        sock.sendto(packet.packet_to_bytes(p), address)
+        data_carry = packet.create_packet(self.udp_port, travel_path[i], self.pack_seq, self.ack_seq, d[0].split("%")[4], d[1])
+        sock.sendto(packet.packet_to_bytes(data_carry), (socket.gethostbyname(socket.gethostname()), travel_path[i]))
+
+    def data_rec_done(self, d, sock, address):
         travel_path = self.calc_optimal_ring_form(sock)
         i = 0
         for x in travel_path:
@@ -374,13 +387,17 @@ class Server:
                 i += 1
                 break
             i += 1
-        sock.sendto(data, (socket.gethostbyname(socket.gethostname()), travel_path[i]))
 
-    def data_done(self, data, sock, address):
-        return_string = "DACK;" + data.split(";")[1] + ";" + data.split(";")[2]
-        sock.sendto(return_string, address)
-        data_write = data.split(";")[3]
-        with open(self.filename, 'a') as f:
+        p = packet.create_packet(self.udp_port, address[1], d[0].split("%")[2], d[0].split("%")[3], "DDONEACK", "")
+        sock.sendto(packet.packet_to_bytes(p), address)
+        data_carry = packet.create_packet(self.udp_port, travel_path[i], d[0].split("%")[2], d[0].split("%")[3], d[0].split("%")[4], d[1])
+        sock.sendto(packet.packet_to_bytes(data_carry), (socket.gethostbyname(socket.gethostname()), travel_path[i]))
+
+    def data_done(self, d, sock, address):
+        p = packet.create_packet(self.udp_port, address[1], d[0].split("%")[2], d[0].split("%")[3], "DACK", "")
+        sock.sendto(packet.packet_to_bytes(p), address)
+        data_write = d[1]
+        with open(self.filename, 'ab') as f:
             f.write(data_write)
 
     def ka(self, sock):
@@ -389,7 +406,8 @@ class Server:
             while self.running:
                 for r in self.ringo_vector:
                     if r != (socket.gethostbyname(socket.gethostname()), int(self.udp_port)):
-                        sock.sendto("KA;", r)
+                        p = packet.create_packet(self.udp_port, r[1], self.pack_seq, self.ack_seq, "KA", "")
+                        sock.sendto(packet.packet_to_bytes(p), r)
                 time.sleep(5)
                 print self.alive_vector
                 if len(self.alive_vector) != self.n - 1:
@@ -398,19 +416,18 @@ class Server:
                         if r not in self.alive_vector:
                             self.dead_ringo = r
                     if self.flag == "R":
-                        revive_vector = "PDREV;"
+                        revive_vector = ""
                         for r in self.ringo_vector:
                             revive_vector += r[0] + "," + str(r[1]) + ";"
-                        sock.sendto(revive_vector, self.dead_ringo)
+                        p = packet.create_packet(self.udp_port, self.dead_ringo[1], self.pack_seq, self.ack_seq, "PDREV", revive_vector)
+                        sock.sendto(packet.packet_to_bytes(p), self.dead_ringo)
 
-                        send_matrix = "RTTREV;"
-                        for rtt in self.rtt_matrix:
-                            send_matrix += str(rtt[0][0]) + "," + str(rtt[0][1]) + "," + str(rtt[1][0]) + "," + str(rtt[1][1]) + "," + str(rtt[2]) + ";"
-                        sock.sendto(send_matrix, self.dead_ringo)
+                        for r in self.ringo_vector:
+                            p = packet.create_packet(self.udp_port, r[1], self.pack_seq, self.ack_seq, "RTTREDO", "")
+                            sock.sendto(packet.packet_to_bytes(p), r)
                 else:
                     self.dead_ringo = []
                 self.alive_vector = []
-
 
     def go_offline(self, t, sock):
         self.running = False
@@ -429,6 +446,10 @@ class Server:
         self.dead_ringo = []
         self.rtt_vec_check = False
         self.ka_on = True
+        self.pack_seq = 0
+        self.ack_seq = 0
+        self.data_send_block = False
+        self.send_packet = packet.create_packet("","","","","","")
 
     def user_input(self, sock):
         data = raw_input('> ')
@@ -449,7 +470,6 @@ class Server:
         else:
             print "That statement does not work at this moment or you do not have the correct flag to complete that task. The only commands that work are show-matrix, show-ring, offline, and send. Only Forwarders can go offline and only the Sender can send. Please try again"
             self.user_input(sock)
-
 
 if __name__ == "__main__":
 
@@ -476,12 +496,12 @@ if __name__ == "__main__":
     POC_NAME = sys.argv[3]
     POC_PORT = int(sys.argv[4])
     N = int(sys.argv[5])
-    p = packet.create_packet(56789, 12345, 5, 10, "n", 200, "heyyyyy yall")
-    x = packet.packet_to_bytes(p)
-    print x
-    y = packet.bytes_to_packet(x)
-    print y
-    print packet.deconstruct_packet(y)
+    # p = packet.create_packet(56789, 12345, 5, 10, "n", 200, "heyyyyy yall")
+    # x = packet.packet_to_bytes(p)
+    # print x
+    # y = packet.bytes_to_packet(x)
+    # print y
+    # print packet.deconstruct_packet(y)
     #print socket.gethostname()
 
     server = Server(FLAG, UDP_PORT, POC_NAME, POC_PORT, N)
