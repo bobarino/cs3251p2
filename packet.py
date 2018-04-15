@@ -1,12 +1,11 @@
 import pickle
 
-HEADER_WITHOUT_CHECK = "!HHIIHHb"
-HEADER_FORMAT = "!HHIIHHbH"
 class Packet:
     def __init__(self, header, data):
         self.head = header
         self.data = data
 
+#Fletcher-32 checksum
 def calculate_checksum(data):
 	b = bytearray(data)
 	result = sum(b) % 65535
@@ -29,22 +28,20 @@ def calculate_checksum(data):
 #DACK -> Acknowledge that correct data was received
 #DDONE -> Finished with data retrieval
 #PDREV -> After ringo comes back from offline, get peer discovery info from Receiver (can't go offline)
+#PDREVDONE -> PD Revival is done for offline ringo
 #RTTREV (Outdated?) -> Tell all ringos to redo rtt_matrix
 #RTTREDO -> Restart RTT after an offline ringo comes back online
-
 
 def create_packet(srcPort, destPort, seqNum, ackNum, packType, data):
     header = "$$" + str(srcPort) + "%" + str(destPort) + "%" + str(seqNum) + "%" + str(ackNum) + "%" + str(packType) + "%"
     checkSum = calculate_checksum(header + data)
     header += str(checkSum) + "$$"
-
     finalPacket = Packet(header, data)
     return finalPacket
 
 def deconstruct_packet(packet):
     deconstructed = packet.head.replace("$$", "").split(";")
     deconstructed.append(packet.data)
-
     return deconstructed
 
 def packet_to_bytes(packet):
