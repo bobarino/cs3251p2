@@ -29,7 +29,6 @@ def calculate_checksum(data):
 #DDONE -> Finished with data retrieval
 #PDREV -> After ringo comes back from offline, get peer discovery info from Receiver (can't go offline)
 #PDREVDONE -> PD Revival is done for offline ringo
-#RTTREV (Outdated?) -> Tell all ringos to redo rtt_matrix
 #RTTREDO -> Restart RTT after an offline ringo comes back online
 
 def create_packet(srcPort, destPort, seqNum, ackNum, packType, data):
