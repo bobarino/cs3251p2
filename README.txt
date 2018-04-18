@@ -1,5 +1,5 @@
 CS 3251 Programming Assignment 2
-3/16/2018
+4/17/2018
 Elizbeth McConnell elizabeth.mcconnell@gatech.edu
 Nick Giammanco ngiammanco@gatech.edu
 
@@ -29,3 +29,6 @@ To run program:
 Working Commands:
     show-matrix: shows RTT matrix
     show-ring: shows path for optimal ring
+
+Known bugs and limitations:
+    When you make a ringo go offline, send data, and then have the ringo come  back online anerror occurs where the RTT matrix is not updated. 
